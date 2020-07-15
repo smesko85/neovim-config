@@ -27,13 +27,18 @@ function! s:packager_init() abort
   call packager#add('haya14busa/vim-asterisk')
   call packager#add('osyo-manga/vim-anzu')
   call packager#add('stefandtw/quickfix-reflector.vim')
-  call packager#add('neoclide/coc.nvim', { 'branch': 'release' })
   call packager#add('w0rp/ale')
   call packager#add('AndrewRadev/tagalong.vim')
   call packager#add('kristijanhusak/vim-create-pr')
   call packager#add('wakatime/vim-wakatime')
   call packager#add('arzg/vim-colors-xcode')
   call packager#add('gruvbox-community/gruvbox')
+  call packager#add('tmsvg/pear-tree')
+  call packager#add('neovim/nvim-lsp')
+  call packager#add('nvim-lua/completion-nvim')
+  call packager#add('kristijanhusak/vim-dadbod-completion')
+  call packager#add('nvim-treesitter/nvim-treesitter')
+  call packager#add('nvim-treesitter/completion-treesitter')
 endfunction
 
 let g:mapleader = ','                                                           "Change leader to a comma
