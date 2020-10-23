@@ -3,29 +3,10 @@ set pumheight=15                                                                
 augroup vimrc_autocomplete
   autocmd!
   autocmd VimEnter * lua require'lsp_setup'
-  autocmd FileType javascript,javascriptreact,vim,php,gopls,lua setlocal omnifunc=v:lua.vim.lsp.omnifunc
-  autocmd CursorHold * lua vim.lsp.util.show_line_diagnostics()
-  autocmd BufEnter * lua require'completion'.on_attach()
-  autocmd FileType sql let g:completion_trigger_character = ['.', '"']
+  autocmd FileType javascript,javascriptreact,vim,php,gopls,lua setlocal omnifunc=v:lua.omnifunc_sync
 augroup END
 
 set completeopt=menuone,noinsert,noselect
-
-let g:completion_confirm_key = ''
-let g:completion_matching_strategy_list = ['exact', 'substring', 'fuzzy']
-let g:completion_enable_snippet = 'vim-vsnip'
-let g:completion_matching_ignore_case = 1
-let g:completion_word_ignored_ft = ['dbout']
-let g:completion_chain_complete_list = {
-      \ 'sql': [
-      \   {'complete_items': ['snippet', 'vim-dadbod-completion']},
-      \   {'mode': '<c-n>'},
-      \],
-      \ 'default': [
-      \    {'complete_items': ['snippet', 'ts', 'lsp', 'buffers', 'tags']},
-      \    {'complete_items': ['path']},
-      \    {'mode': '<c-n>'},
-      \  ]}
 
 function! s:check_back_space() abort
     let col = col('.') - 1
@@ -49,20 +30,20 @@ function s:tab_completion() abort
     return "\<Plug>(vsnip-expand)"
   endif
 
-  return "\<Plug>(completion_next_source)"
+  if !empty(&omnifunc)
+    return "\<C-x>\<C-o>"
+  endif
+
+  return "\<C-n>"
 endfunction
 
 imap <expr> <TAB> <sid>tab_completion()
+imap <expr><C-space> "\<C-r>=CustomPathCompletion()\<CR>"
 
 imap <expr><S-TAB> pumvisible() ? "\<C-p>" : vsnip#jumpable(-1) ? "\<Plug>(vsnip-jump-prev)" : "\<S-TAB>"
 smap <expr><TAB> vsnip#available(1)  ? "\<Plug>(vsnip-expand-or-jump)" : "\<TAB>"
 smap <expr><S-TAB> vsnip#available(-1)  ? "\<Plug>(vsnip-jump-prev)" : "\<S-TAB>"
-imap <expr> <CR> pumvisible() && complete_info()['selected'] != '-1'
-      \ ? "\<Plug>(completion_confirm_completion)"
-      \ : vsnip#expandable() ? "\<Plug>(vsnip-expand)" : "\<Plug>(PearTreeExpand)"
-
-imap  <c-j> <Plug>(completion_next_source)
-imap  <c-k> <Plug>(completion_prev_source)
+imap <expr> <CR> vsnip#expandable() ? "\<Plug>(vsnip-expand)" : "\<Plug>(PearTreeExpand)"
 
 nmap <leader>ld <cmd>lua vim.lsp.buf.definition()<CR>
 nmap <leader>lc <cmd>lua vim.lsp.buf.declaration()<CR>
@@ -97,3 +78,41 @@ set wildignore+=*.gem
 set wildignore+=log/**
 set wildignore+=tmp/**
 set wildignore+=*.png,*.jpg,*.gif
+
+
+fun! s:fnameescape(p)
+  return escape(fnameescape(a:p), '}')
+endf
+
+" Taken from mucomplete
+" https://github.com/lifepillar/vim-mucomplete/blob/master/autoload/mucomplete/path.vim#L78
+function! CustomPathCompletion() abort
+  let l:prefix = matchstr(getline('.'), '\f\%(\f\|\s\)*\%'.col('.').'c')
+  while strlen(l:prefix) > 0 " Try to find an existing path (consider paths with spaces, too)
+    if l:prefix ==# '~'
+      let l:files = glob('~', 0, 1, 1)
+      if !empty(l:files)
+        call complete(col('.') - 1, map(l:files, '{ "word": v:val, "menu": "[dir]" }'))
+        return ''
+      endif
+      return feedkeys("\<C-g>\<C-g>\<C-n>")
+    endif
+
+    let l:files = glob(
+          \ (l:prefix !~# '^[/~]'
+          \   ? s:fnameescape(expand('%:p:h')) . '/'
+          \   : '')
+          \ . s:fnameescape(l:prefix) . '*', 0, 1, 1)
+    if !empty(l:files)
+      call complete(col('.') - len(fnamemodify(l:prefix, ':t')), map(l:files,
+            \  '{
+            \      "word": fnamemodify(v:val, ":t"),
+            \      "menu": (isdirectory(v:val) ? "[dir]" : "[file]"),
+            \   }'
+            \ ))
+      return ''
+    endif
+    let l:prefix = matchstr(l:prefix, '\%(\s\|=\)\zs.*[/~].*$', 1) " Next potential path
+  endwhile
+  return feedkeys("\<C-g>\<C-g>\<C-n>")
+endfunction
